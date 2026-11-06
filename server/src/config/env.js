@@ -8,4 +8,5 @@ export const env = {
   anthropicModel: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+  dbPath: process.env.DB_PATH || './data/pulse.db',
 };
