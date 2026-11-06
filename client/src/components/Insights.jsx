@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { fetchAnalytics } from '../api.js';
 
 const URGENCY_LABEL = {
   emergency: 'Emergency',
@@ -35,8 +36,8 @@ export default function Insights() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch('/api/analytics')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Could not load insights'))))
+    fetchAnalytics()
+      
       .then(setData)
       .catch((e) => setError(e.message));
   }, []);
