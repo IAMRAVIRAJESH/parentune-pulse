@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import TriageForm from './components/TriageForm.jsx';
 import ResultCard from './components/ResultCard.jsx';
 import Insights from './components/Insights.jsx';
@@ -8,7 +8,18 @@ export default function App() {
   const [tab, setTab] = useState('ask');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [error, setError] = useState('');
+
+  // Free hosting sleeps when idle. Explain the wait instead of leaving a blank spinner.
+  useEffect(() => {
+    if (!loading) {
+      setSlow(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlow(true), 6000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   const handleSubmit = async (payload) => {
     setLoading(true);
@@ -39,7 +50,16 @@ export default function App() {
         {tab === 'ask' ? (
           <>
             <TriageForm onSubmit={handleSubmit} loading={loading} />
-            {loading && <div className="h-40 animate-pulse rounded-2xl bg-slate-200" />}
+            {loading && (
+              <div className="space-y-2">
+                <div className="h-40 animate-pulse rounded-2xl bg-slate-200" />
+                {slow && (
+                  <p className="text-center text-sm text-slate-500">
+                    Waking up the server. The first request can take up to a minute.
+                  </p>
+                )}
+              </div>
+            )}
             {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             {result && <ResultCard result={result} />}
           </>

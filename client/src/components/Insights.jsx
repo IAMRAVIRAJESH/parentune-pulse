@@ -36,20 +36,26 @@ export default function Insights() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchAnalytics()
-      
-      .then(setData)
-      .catch((e) => setError(e.message));
+    fetchAnalytics().then(setData).catch((e) => setError(e.message));
   }, []);
 
   if (error) return <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>;
   if (!data) return <div className="h-40 animate-pulse rounded-2xl bg-slate-200" />;
 
+  const votes = (data.helpful?.yes ?? 0) + (data.helpful?.no ?? 0);
+  const helpfulPct = votes > 0 ? Math.round((data.helpful.yes / votes) * 100) : null;
+
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl bg-white p-4 text-center shadow-sm">
-        <p className="text-3xl font-bold text-violet-600">{data.total}</p>
-        <p className="text-sm text-slate-600">concerns triaged</p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-white p-4 text-center shadow-sm">
+          <p className="text-3xl font-bold text-violet-600">{data.total}</p>
+          <p className="text-sm text-slate-600">concerns triaged</p>
+        </div>
+        <div className="rounded-2xl bg-white p-4 text-center shadow-sm">
+          <p className="text-3xl font-bold text-violet-600">{helpfulPct === null ? '-' : `${helpfulPct}%`}</p>
+          <p className="text-sm text-slate-600">found helpful{votes > 0 ? ` (${votes} votes)` : ''}</p>
+        </div>
       </div>
       <Bars title="Top concern categories" rows={data.byCategory} />
       <Bars title="Urgency breakdown" rows={data.byUrgency} format={(l) => URGENCY_LABEL[l] ?? l} />

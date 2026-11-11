@@ -1,3 +1,5 @@
+import FeedbackBar from './FeedbackBar.jsx';
+
 const URGENCY = {
   emergency: { label: 'Emergency', hint: 'Get medical help right now', box: 'border-red-300 bg-red-50', badge: 'bg-red-600' },
   see_doctor: { label: 'See a doctor', hint: 'Best checked by a doctor soon', box: 'border-orange-300 bg-orange-50', badge: 'bg-orange-500' },
@@ -37,6 +39,8 @@ export default function ResultCard({ result }) {
         <button className="rounded-xl bg-violet-600 py-2 text-sm font-semibold text-white">Talk to a doctor</button>
         <button className="rounded-xl border border-violet-600 py-2 text-sm font-semibold text-violet-700">Ask parents</button>
       </div>
+
+      {result.urgency !== 'emergency' && result.id && <FeedbackBar resultId={result.id} />}
 
       <p className="text-xs text-slate-500">{result.disclaimer}</p>
     </div>

@@ -1,6 +1,8 @@
 import { TRIAGE_SYSTEM_PROMPT } from './triagePrompt.js';
 import { parseJson } from './parseJson.js';
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function upstreamError(message, status) {
   const err = new Error(message);
   err.status = status;
@@ -11,12 +13,35 @@ function upstreamError(message, status) {
 export class GeminiProvider {
   constructor({ apiKey, model }) {
     if (!apiKey) throw new Error('GEMINI_API_KEY is missing in server/.env');
-    this.apiKey = apiKey;
-    this.model = model;
+    this.apiKey = apiKey.trim();
+    // GEMINI_MODEL can be a comma-separated list: the first is tried first, the rest are fallbacks.
+    this.models = String(model)
+      .split(',')
+      .map((m) => m.trim().replace(/^models\//, '').replace(/["'\s]/g, ''))
+      .filter(Boolean);
+    if (this.models.length === 0) throw new Error('GEMINI_MODEL is empty');
   }
 
-  async triage({ concern, ageMonths }) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent`;
+  async triage(input) {
+    let lastError;
+    for (const model of this.models) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          return await this.#call(model, input);
+        } catch (err) {
+          lastError = err;
+          if (err.status === 401 || err.status === 403) throw err; // bad key: no point retrying
+          const retryable = err.status === 429 || err.status >= 500;
+          if (!retryable) break; // 400/404 for this model: move to the next model
+          await sleep(700);
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  async #call(model, { concern, ageMonths }) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
     const res = await fetch(url, {
       method: 'POST',
@@ -37,7 +62,7 @@ export class GeminiProvider {
 
     if (!res.ok) {
       const body = (await res.text()).slice(0, 500);
-      console.error(`Gemini ${res.status}:`, body);
+      console.error(`Gemini ${res.status} (${model}):`, body);
       throw upstreamError(`Gemini request failed (${res.status})`, res.status);
     }
 
@@ -46,14 +71,14 @@ export class GeminiProvider {
     const text = (candidate?.content?.parts ?? []).map((p) => p.text ?? '').join('');
 
     if (!text) {
-      console.error('Gemini returned no text:', JSON.stringify(data).slice(0, 500));
+      console.error(`Gemini (${model}) returned no text:`, JSON.stringify(data).slice(0, 500));
       throw upstreamError('Empty response from Gemini', 502);
     }
 
     try {
       return parseJson(text);
     } catch {
-      console.error('Gemini returned invalid JSON. finishReason:', candidate?.finishReason, text.slice(0, 300));
+      console.error(`Gemini (${model}) invalid JSON. finishReason:`, candidate?.finishReason, text.slice(0, 300));
       throw upstreamError('Invalid JSON from Gemini', 502);
     }
   }

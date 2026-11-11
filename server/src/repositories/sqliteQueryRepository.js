@@ -19,6 +19,11 @@ export class SqliteQueryRepository {
         result_json TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_queries_created ON queries(created_at);
+      CREATE TABLE IF NOT EXISTS feedback (
+        query_id TEXT PRIMARY KEY,
+        helpful INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
     `);
   }
 
@@ -46,6 +51,19 @@ export class SqliteQueryRepository {
       }));
   }
 
+  // Returns false when the query id does not exist.
+  async saveFeedback(queryId, helpful) {
+    const exists = this.db.prepare('SELECT 1 AS ok FROM queries WHERE id = ?').get(queryId);
+    if (!exists) return false;
+    this.db
+      .prepare(
+        `INSERT INTO feedback (query_id, helpful, created_at) VALUES (?, ?, ?)
+         ON CONFLICT(query_id) DO UPDATE SET helpful = excluded.helpful, created_at = excluded.created_at`
+      )
+      .run(queryId, helpful ? 1 : 0, new Date().toISOString());
+    return true;
+  }
+
   // Aggregates only. Raw parent concerns never leave the database through analytics.
   async stats() {
     const plain = (rows) => rows.map((r) => ({ ...r }));
@@ -69,6 +87,10 @@ export class SqliteQueryRepository {
         )
         .all()
     ).reverse();
-    return { total, byUrgency, byCategory, perDay };
+    const fb = this.db
+      .prepare('SELECT COALESCE(SUM(helpful), 0) AS yes, COUNT(*) AS votes FROM feedback')
+      .get();
+    const helpful = { yes: Number(fb.yes), no: Number(fb.votes) - Number(fb.yes) };
+    return { total, byUrgency, byCategory, perDay, helpful };
   }
 }

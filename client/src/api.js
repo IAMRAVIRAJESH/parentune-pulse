@@ -26,3 +26,12 @@ export async function fetchAnalytics() {
   if (!res.ok) throw new Error('Could not load insights');
   return res.json();
 }
+
+export async function sendFeedback(id, helpful) {
+  const res = await fetch(`${API_URL}/api/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, helpful }),
+  });
+  if (!res.ok) throw new Error('Could not send feedback');
+}

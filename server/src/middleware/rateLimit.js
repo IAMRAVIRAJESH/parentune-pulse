@@ -8,3 +8,11 @@ export const triageLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many requests. Please wait a minute and try again.' },
 });
+
+export const feedbackLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please wait a minute and try again.' },
+});
