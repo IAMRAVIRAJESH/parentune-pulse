@@ -1,6 +1,13 @@
 import { TRIAGE_SYSTEM_PROMPT } from './triagePrompt.js';
 import { parseJson } from './parseJson.js';
 
+function upstreamError(message, status) {
+  const err = new Error(message);
+  err.status = status;
+  err.upstream = true;
+  return err;
+}
+
 export class GeminiProvider {
   constructor({ apiKey, model }) {
     if (!apiKey) throw new Error('GEMINI_API_KEY is missing in server/.env');
@@ -24,18 +31,30 @@ export class GeminiProvider {
             ],
           },
         ],
-        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 2000, temperature: 0.3 },
+        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 4000, temperature: 0.3 },
       }),
     });
 
     if (!res.ok) {
-      const err = new Error(`Gemini request failed (${res.status})`);
-      err.status = res.status;
-      throw err;
+      const body = (await res.text()).slice(0, 500);
+      console.error(`Gemini ${res.status}:`, body);
+      throw upstreamError(`Gemini request failed (${res.status})`, res.status);
     }
 
     const data = await res.json();
-    const text = (data.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('');
-    return parseJson(text);
+    const candidate = data.candidates?.[0];
+    const text = (candidate?.content?.parts ?? []).map((p) => p.text ?? '').join('');
+
+    if (!text) {
+      console.error('Gemini returned no text:', JSON.stringify(data).slice(0, 500));
+      throw upstreamError('Empty response from Gemini', 502);
+    }
+
+    try {
+      return parseJson(text);
+    } catch {
+      console.error('Gemini returned invalid JSON. finishReason:', candidate?.finishReason, text.slice(0, 300));
+      throw upstreamError('Invalid JSON from Gemini', 502);
+    }
   }
 }
