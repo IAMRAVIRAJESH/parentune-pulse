@@ -8,7 +8,7 @@ An AI triage tool for parents. Describe a worry in English, Hindi or Hinglish, a
 
 It mirrors Parentune's promise: trustworthy answers in minutes, 24x7.
 
-**Live demo:** _add Netlify link_
+**Live demo:** https://resilient-kulfi-12e1f7.netlify.app
 
 ## Architecture
 
